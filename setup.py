@@ -6,11 +6,15 @@ import subprocess
 import sys
 import warnings
 import os
+import re
 
 # ninja build does not work unless include_dirs are abs path
 this_dir = os.path.dirname(os.path.abspath(__file__))
 torch_dir = torch.__path__[0]
 
+gpus = subprocess.check_output("/opt/rocm/bin/rocminfo").decode('UTF-8').split('\n')
+gpus = list(set([re.search('(gfx90.)', g).group(0) for g in gpus if 'gfx90' in g]))
+extra_args = ["--amdgpu-target=" + g for g in gpus]
 # https://github.com/pytorch/pytorch/pull/71881
 # For the extensions which have rocblas_gemm_flags_fp16_alt_impl we need to make sure if at::BackwardPassGuard exists.
 # It helps the extensions be backward compatible with old PyTorch versions.
@@ -309,7 +313,7 @@ if "--bnp" in sys.argv or "--cuda_ext" in sys.argv:
                                               'nvcc':['-DCUDA_HAS_FP16=1',
                                                       '-D__CUDA_NO_HALF_OPERATORS__',
                                                       '-D__CUDA_NO_HALF_CONVERSIONS__',
-                                                      '-D__CUDA_NO_HALF2_OPERATORS__'] + version_dependent_macros}))
+                                                      '-D__CUDA_NO_HALF2_OPERATORS__'] + version_dependent_macros + extra_args}))
 
 if "--xentropy" in sys.argv or "--cuda_ext" in sys.argv:
     from torch.utils.cpp_extension import CUDAExtension
