@@ -101,6 +101,8 @@ struct PackedStorage<uint16_t, ELEMENTS_PER_LDG> {
 
 template< int N >
 DEVICE_FUNCTION void from_float(int (&dst)[N], const float (&src)[2*N]) {
+	// FIXME: Not used
+#if 1
     // Convert from two f32s to two f16s (mantissa LSB rounds to nearest even)
     // (From 64-bit to 32-bit)
     half *dst_ = (half *) dst;
@@ -116,6 +118,7 @@ DEVICE_FUNCTION void from_float(int (&dst)[N], const float (&src)[2*N]) {
         asm volatile("mov.b32 %0, {%1, %2};"  : "=r"(dst[i]) : "h"(lo), "h"(hi));
 #endif
     }
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,12 +136,17 @@ DEVICE_FUNCTION void from_float(float (&dst)[N], const float (&src)[N]) {
 template< int N >
 DEVICE_FUNCTION void to_float(float (&dst)[2*N], int (&src)[N]) {
     // Convert from two f16s to two f32s (From 32-bit to 64-bit)
-    #pragma unroll
-    for (int i = 0; i < N; ++i) {
+// FIXME: This function is workhorse
+#if 1
+    half *src_ = (half *) src;
+#pragma unroll
+    for (int i = 0; i < N ; ++i) {
 #ifdef __HIP_PLATFORM_HCC__
-        half *src_ = (half *) src;
+        //asm volatile("\n v_pack_b32_f16 %0, %1, %2 \n " : "=v"(src[i]) : "v" )
         dst[2*i] = __half2float(src_[2*i]);
         dst[2*i+1] = __half2float(src_[2*i+1]);
+        //dst[2*i+2] = __half2float(src_[2*i+2]);
+        //dst[2*i+3] = __half2float(src_[2*i+3]);
 #else
         uint16_t lo, hi;
         asm volatile("mov.b32 {%0, %1}, %2;" : "=h"(lo), "=h"(hi) : "r"(src[i]));
@@ -146,16 +154,20 @@ DEVICE_FUNCTION void to_float(float (&dst)[2*N], int (&src)[N]) {
         asm volatile("cvt.f32.f16 %0, %1;"   : "=f"(dst[2*i+1])   : "h"(hi));
 #endif
     }
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template< int N >
 DEVICE_FUNCTION void to_float(float (&dst)[N], float (&src)[N]) {
+// FIXME: Not used
+#if 1
     #pragma unroll
     for (int i = 0; i < N; ++i) {
         dst[i] = src[i];
     }
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,12 +179,14 @@ DEVICE_FUNCTION void ldg(int (&dst)[1], const uint16_t *gmem) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEVICE_FUNCTION void ldg_stream(int (&dst)[1], const uint16_t *gmem) {
+#if 1
 #ifdef __HIP_PLATFORM_HCC__
     dst[0] = __ldg((const int*) gmem);
 #else
     unsigned int tmp;
     asm volatile ("ld.global.cs.nc.s32 %0, [%1];"  : "=r"(tmp) : "l" ((const uint *)gmem));
     dst[0] = tmp;
+#endif
 #endif
 }
 
@@ -187,6 +201,7 @@ DEVICE_FUNCTION void ldg(int (&dst)[2], const uint16_t *gmem) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEVICE_FUNCTION void ldg_stream(int (&dst)[2], const uint16_t *gmem) {
+#if 1
 #ifdef __HIP_PLATFORM_HCC__
     int2 tmp = __ldg((const int2*) gmem);
     dst[0] = tmp.x;
@@ -197,6 +212,7 @@ DEVICE_FUNCTION void ldg_stream(int (&dst)[2], const uint16_t *gmem) {
         : "=r"(tmp.x), "=r"(tmp.y) : "l"((const int2 *)gmem));
     dst[0] = tmp.x;
     dst[1] = tmp.y;
+#endif
 #endif
 }
 
@@ -242,6 +258,7 @@ DEVICE_FUNCTION void stg(uint16_t *gmem, int (&src)[2]) {
 #ifdef __HIP_PLATFORM_HCC__
     half *gmem_ = (half *) gmem;
     half *src_ = (half *) src;
+#pragma unroll
     for (int i = 0; i < 4; i++) {
       gmem_[i] = src_[i];
     }
@@ -256,6 +273,7 @@ DEVICE_FUNCTION void stg_stream(uint16_t *gmem, int (&src)[2]) {
 #ifdef __HIP_PLATFORM_HCC__
     half *gmem_ = (half *) gmem;
     half *src_ = (half *) src;
+#pragma unroll
     for (int i = 0; i < 4; i++) {
       gmem_[i] = src_[i];
     }
@@ -284,24 +302,44 @@ DEVICE_FUNCTION void stg_stream(uint16_t *gmem, float (&src)[N]) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef __HIP_PLATFORM_HCC__
+DEVICE_FUNCTION void stg_stream(uint16_t *gmem, float (&src)[2]) {
+    half *gmem_ = (half *) gmem;
+    gmem_[0] = __float2half(src[0]);
+    gmem_[1] = __float2half(src[1]);
+}
+
+DEVICE_FUNCTION void stg(uint16_t *gmem, float (&src)[2]) {
+    half *gmem_ = (half *) gmem;
+    gmem_[0] = __float2half(src[0]);
+    gmem_[1] = __float2half(src[1]);
+}
+#endif
 
 #ifdef __HIP_PLATFORM_HCC__
 DEVICE_FUNCTION void stg(uint16_t *gmem, float (&src)[4]) {
+// FIXME: Not used
+#if 1
     half *gmem_ = (half *) gmem;
     gmem_[0] = __float2half(src[0]);
     gmem_[1] = __float2half(src[1]);
     gmem_[2] = __float2half(src[2]);
     gmem_[3] = __float2half(src[3]);
+#endif
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEVICE_FUNCTION void stg_stream(uint16_t *gmem, float (&src)[4]) {
+    // FIXME: Another workhorse
+#if 1
     half *gmem_ = (half *) gmem;
     gmem_[0] = __float2half(src[0]);
     gmem_[1] = __float2half(src[1]);
     gmem_[2] = __float2half(src[2]);
     gmem_[3] = __float2half(src[3]);
+#endif
 }
 #endif
 
@@ -318,6 +356,16 @@ DEVICE_FUNCTION void read_from_gmem(float (&dst)[2], const float *gmem, int idx)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+DEVICE_FUNCTION void read_from_gmem(float (&dst)[8], const float *gmem, int idx) {
+    dst[0] = gmem[8*idx];
+    dst[1] = gmem[8*idx+1];
+    dst[2] = gmem[8*idx+2];
+    dst[3] = gmem[8*idx+3];
+    dst[4] = gmem[8*idx+4];
+    dst[5] = gmem[8*idx+5];
+    dst[6] = gmem[8*idx+6];
+    dst[7] = gmem[8*idx+7];
+}    
 DEVICE_FUNCTION void read_from_gmem(float (&dst)[4], const float *gmem, int idx) {
 #ifdef __HIP_PLATFORM_HCC__
     dst[0] = gmem[4*idx];
@@ -406,6 +454,10 @@ DEVICE_FUNCTION void write_to_gmem(float *gmem, int idx, const float (&src)[4]) 
 #endif
 }
 
+DEVICE_FUNCTION void scaled_write_to_gmem(float *gmem, int idx, const float (&src)[2], const float coeff) {
+    gmem[2*idx] = src[0]*coeff;
+    gmem[2*idx+1] = src[1]*coeff;
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEVICE_FUNCTION void scaled_write_to_gmem(float *gmem, int idx, const float (&src)[4], const float coeff) {

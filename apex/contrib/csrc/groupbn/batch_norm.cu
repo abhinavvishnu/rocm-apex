@@ -77,6 +77,9 @@ at::Tensor nhwc_bn_fwd_train(
   // Allocate output tensor
   at::Tensor y = check_channels_last ? at::empty({N, C, H, W}, x.options().memory_format(memory_format)) : at::empty({N, H, W, C}, x.options());
 
+
+
+  std::cout <<"Using correct1 version" << std::endl;
   // Create wrapper
   NhwcBatchNorm *bn = new NhwcBatchNorm();
 

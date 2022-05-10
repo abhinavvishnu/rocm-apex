@@ -234,20 +234,20 @@ class NhwcBatchNorm {
 
   // @todo: ability to configure these?
   // Kernel params
-  static const int USE_ONLINE_APPROACH = 1;
-  static const int THREADS_PER_CTA = 512;
-  static const int THREADS_PER_PIXEL = 16;
-  static const int C_ELEMENTS_PER_CTA = 64;
+  static const int USE_ONLINE_APPROACH = 0;
+  static const int THREADS_PER_CTA = 256;
+  static const int THREADS_PER_PIXEL = 64;
+  static const int C_ELEMENTS_PER_CTA = 256;
   static const int ELEMENTS_PER_LDG = C_ELEMENTS_PER_CTA / THREADS_PER_PIXEL;
-  static const int MAX_SMEM_WITHOUT_OPT_IN = 48 * 1024;
+  static const int MAX_SMEM_WITHOUT_OPT_IN = 64 * 1024;
 
   typedef uint16_t StorageType;
   //typedef float StorageType;
   // increasing this to 6 causes spills in fwd kernel!
-  static const int PIXELS_PER_THREAD_IN_REGISTERS_FWD = 5;
-  static const int PIXELS_PER_THREAD_IN_REGISTERS_BWD = 3;
-  static const int PIXELS_PER_THREAD_IN_SMEM_FWD = 10;
-  static const int PIXELS_PER_THREAD_IN_SMEM_BWD = 5;
+  static const int PIXELS_PER_THREAD_IN_REGISTERS_FWD = 2;
+  static const int PIXELS_PER_THREAD_IN_REGISTERS_BWD = 1;
+  static const int PIXELS_PER_THREAD_IN_SMEM_FWD = 4;
+  static const int PIXELS_PER_THREAD_IN_SMEM_BWD = 2;
 
   static const int PIXELS_PER_THREAD_FWD = PIXELS_PER_THREAD_IN_REGISTERS_FWD + \
       PIXELS_PER_THREAD_IN_SMEM_FWD;
@@ -269,7 +269,7 @@ class NhwcBatchNorm {
       PIXELS_PER_THREAD_FWD_INFERENCE;
 
   // max grid.y in case of group bn is limited by exchange buffer size
-  static const int MAX_GBN_BLOCK_Y = 256;
+  static const int MAX_GBN_BLOCK_Y = 16;
 
   // Helper function to launch the forward kernel.
 
